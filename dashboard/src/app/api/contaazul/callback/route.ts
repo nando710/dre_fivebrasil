@@ -12,8 +12,11 @@ export async function GET(request: NextRequest) {
 
     try {
         await exchangeCodeForTokens(code);
-        // Redirect back to the Conta Azul dashboard route
-        return NextResponse.redirect(new URL('/conta-azul', request.url));
+        const baseUri = process.env.CONTA_AZUL_REDIRECT_URI || 'http://localhost:3000';
+        const urlObject = new URL(baseUri);
+        const redirectDashboardUrl = `${urlObject.protocol}//${urlObject.host}/conta-azul`;
+
+        return NextResponse.redirect(redirectDashboardUrl);
     } catch (error: any) {
         console.error('Callback error:', error?.response?.data || error.message);
         return NextResponse.json({ error: 'Failed to exchange code for tokens', details: error?.response?.data }, { status: 500 });
