@@ -12,9 +12,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     const items = [
         { name: 'Dashboard (Planilha)', href: '/', icon: Home },
-        { name: 'Conta Azul (API)', href: '/conta-azul', icon: PieChart },
-        { name: 'Relatórios', href: '/reports', icon: BarChart3 },
-        { name: 'Configurações', href: '/settings', icon: Settings },
+        { name: 'Conta Azul (API)', href: '/conta-azul', icon: PieChart }
     ];
 
     return (
