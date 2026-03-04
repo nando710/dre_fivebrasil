@@ -12,8 +12,15 @@ function extractDataArray(data: any): any[] {
     if (Array.isArray(data.content)) return data.content; // Typical Spring / Java pagination
     if (Array.isArray(data.categorias)) return data.categorias;
     if (Array.isArray(data.lancamentos)) return data.lancamentos;
+    if (data && typeof data === 'object') {
+        const firstKeyWithArray = Object.keys(data).find(key => Array.isArray(data[key]));
+        if (firstKeyWithArray) {
+            console.log(`[Conta Azul] Auto-discovered list in key: ${firstKeyWithArray}`);
+            return data[firstKeyWithArray];
+        }
+    }
 
-    console.error('[Conta Azul API] Unexpected response format:', JSON.stringify(data).substring(0, 500));
+    console.error('[Conta Azul API] Unexpected response format. Keys found:', data ? Object.keys(data) : 'none');
     return [];
 }
 
@@ -86,21 +93,34 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
 
     const [receivablesRes, payablesRes] = await Promise.all([receivingReq, payableReq]);
 
-    const receivables = extractDataArray(receivablesRes.data).map(tx => ({
+    console.log('[Conta Azul Logs] Receivables API keys:', Object.keys(receivablesRes.data || {}));
+    console.log('[Conta Azul Logs] Payables API keys:', Object.keys(payablesRes.data || {}));
+
+    const rawReceivablesList = extractDataArray(receivablesRes.data);
+    const rawPayablesList = extractDataArray(payablesRes.data);
+
+    if (rawReceivablesList.length > 0) {
+        console.log('[Conta Azul Logs] Sample Receivable object:', JSON.stringify(rawReceivablesList[0]));
+    }
+    if (rawPayablesList.length > 0) {
+        console.log('[Conta Azul Logs] Sample Payable object:', JSON.stringify(rawPayablesList[0]));
+    }
+
+    const receivables = rawReceivablesList.map(tx => ({
         ...tx,
         type: 'RECEIPT',
         // MAP fields if API returned differently, usually: `data_vencimento`, `valor`, `categoria_id`
         value: tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission,
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || new Date().toISOString(),
         category_id: tx.categoria_id || tx.category_id,
         description: tx.descricao || tx.observacao || tx.description || 'Recebimento'
     }));
 
-    const payables = extractDataArray(payablesRes.data).map(tx => ({
+    const payables = rawPayablesList.map(tx => ({
         ...tx,
         type: 'PAYMENT',
         value: tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission,
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || new Date().toISOString(),
         category_id: tx.categoria_id || tx.category_id,
         description: tx.descricao || tx.observacao || tx.description || 'Pagamento'
     }));
