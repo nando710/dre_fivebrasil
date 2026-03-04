@@ -66,16 +66,20 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
     const token = await getValidAccessToken();
     if (!token) throw new Error('Not authenticated with Conta Azul');
 
-    // For the search endpoint, the date format is usually DD/MM/YYYY or YYYY-MM-DD depending on the exact API design
-    // The previous docs used ISO, but often /buscar expects local dates or similar. Let's use ISO start/end if accepted, 
-    // or fallback to fetching all recent by competência/vencimento.
-    // The docs say: `data_competencia_inicial` / `data_competencia_final` or similar parameters are used. 
-    // Since we don't know the exact query params for `/buscar` upfront, we'll try a generic get.
-    // If we get an error regarding filters, we'll adjust or just fetch the first page and filter locally.
+    // For the search endpoint, the date format must include data_vencimento_de and data_vencimento_ate
+    // Let's use standard ISO YYYY-MM-DD as usually required by Brazilian APIs
+    const start = `${year}-01-01`;
+    const end = `${year}-12-31`;
+
+    const commonParams = {
+        data_vencimento_de: start,
+        data_vencimento_ate: end,
+        size: 1000
+    };
 
     // We fetch Receivables
     const receivingReq = axios.get(`${CONTA_AZUL_API}/v1/financeiro/eventos-financeiros/contas-a-receber/buscar`, {
-        params: { size: 1000 },
+        params: commonParams,
         headers: { 'Authorization': `Bearer ${token}` }
     }).catch(error => {
         console.warn('[Conta Azul API] Warning fetching Receivables:', error?.response?.status, error?.response?.data, error.config?.url);
@@ -84,7 +88,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
 
     // We fetch Payables
     const payableReq = axios.get(`${CONTA_AZUL_API}/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar`, {
-        params: { size: 1000 },
+        params: commonParams,
         headers: { 'Authorization': `Bearer ${token}` }
     }).catch(error => {
         console.warn('[Conta Azul API] Warning fetching Payables:', error?.response?.status, error?.response?.data, error.config?.url);
@@ -111,7 +115,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
         type: 'RECEIPT',
         // MAP fields if API returned differently, usually: `data_vencimento`, `valor`, `categoria_id`
         value: tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || new Date().toISOString(),
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
         category_id: tx.categoria_id || tx.category_id,
         description: tx.descricao || tx.observacao || tx.description || 'Recebimento'
     }));
@@ -120,7 +124,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
         ...tx,
         type: 'PAYMENT',
         value: tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || new Date().toISOString(),
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
         category_id: tx.categoria_id || tx.category_id,
         description: tx.descricao || tx.observacao || tx.description || 'Pagamento'
     }));
