@@ -40,6 +40,9 @@ export async function fetchCategories(): Promise<Map<string, ContaAzulCategory>>
     // Trying the most common endpoints
     const response = await axios.get(`${CONTA_AZUL_API}/v1/categorias`, {
         headers: { 'Authorization': `Bearer ${token}` }
+    }).catch(error => {
+        console.error('[Conta Azul API] Error fetching Categories:', error?.response?.status, error?.response?.data, error.config?.url);
+        throw new Error(`Falha ao buscar Categorias: ${error?.response?.status} na URL ${error.config?.url}`);
     });
 
     const categoryMap = new Map<string, ContaAzulCategory>();
@@ -69,6 +72,9 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
             size: 1000 // Might need pagination in a real scenario
         },
         headers: { 'Authorization': `Bearer ${token}` }
+    }).catch(error => {
+        console.error('[Conta Azul API] Error fetching Lançamentos:', error?.response?.status, error?.response?.data, error.config?.url);
+        throw new Error(`Falha ao buscar Lançamentos Financeiros: ${error?.response?.status} na URL ${error.config?.url}`);
     });
 
     // Handle pagination if needed, but for simplicity we return the first page.
