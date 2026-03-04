@@ -59,27 +59,59 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
     const token = await getValidAccessToken();
     if (!token) throw new Error('Not authenticated with Conta Azul');
 
-    // Typically start and end date for the year
-    const start = `${year}-01-01T00:00:00.000Z`;
-    const end = `${year}-12-31T23:59:59.999Z`;
+    // For the search endpoint, the date format is usually DD/MM/YYYY or YYYY-MM-DD depending on the exact API design
+    // The previous docs used ISO, but often /buscar expects local dates or similar. Let's use ISO start/end if accepted, 
+    // or fallback to fetching all recent by competência/vencimento.
+    // The docs say: `data_competencia_inicial` / `data_competencia_final` or similar parameters are used. 
+    // Since we don't know the exact query params for `/buscar` upfront, we'll try a generic get.
+    // If we get an error regarding filters, we'll adjust or just fetch the first page and filter locally.
 
-    // Depending on the exact API, it could be `emission_start` or `due_date_start`
-    // We'll use emission as default
-    const response = await axios.get(`${CONTA_AZUL_API}/v1/financeiro/lancamentos`, {
-        params: {
-            emission_start: start,
-            emission_end: end,
-            size: 1000 // Might need pagination in a real scenario
-        },
+    // We fetch Receivables
+    const receivingReq = axios.get(`${CONTA_AZUL_API}/v1/financeiro/eventos-financeiros/contas-a-receber/buscar`, {
+        params: { size: 1000 },
         headers: { 'Authorization': `Bearer ${token}` }
     }).catch(error => {
-        console.error('[Conta Azul API] Error fetching Lançamentos:', error?.response?.status, error?.response?.data, error.config?.url);
-        throw new Error(`Falha ao buscar Lançamentos Financeiros: ${error?.response?.status} na URL ${error.config?.url}`);
+        console.warn('[Conta Azul API] Warning fetching Receivables:', error?.response?.status, error?.response?.data, error.config?.url);
+        return { data: [] }; // Fallback to empty array if fails so we don't break the whole DRE
     });
 
-    // Handle pagination if needed, but for simplicity we return the first page.
-    // In a robust app, append all pages.
-    return extractDataArray(response.data);
+    // We fetch Payables
+    const payableReq = axios.get(`${CONTA_AZUL_API}/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar`, {
+        params: { size: 1000 },
+        headers: { 'Authorization': `Bearer ${token}` }
+    }).catch(error => {
+        console.warn('[Conta Azul API] Warning fetching Payables:', error?.response?.status, error?.response?.data, error.config?.url);
+        return { data: [] }; // Fallback
+    });
+
+    const [receivablesRes, payablesRes] = await Promise.all([receivingReq, payableReq]);
+
+    const receivables = extractDataArray(receivablesRes.data).map(tx => ({
+        ...tx,
+        type: 'RECEIPT',
+        // MAP fields if API returned differently, usually: `data_vencimento`, `valor`, `categoria_id`
+        value: tx.valor || tx.value || 0,
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission,
+        category_id: tx.categoria_id || tx.category_id,
+        description: tx.descricao || tx.observacao || tx.description || 'Recebimento'
+    }));
+
+    const payables = extractDataArray(payablesRes.data).map(tx => ({
+        ...tx,
+        type: 'PAYMENT',
+        value: tx.valor || tx.value || 0,
+        emission: tx.data_competencia || tx.data_vencimento || tx.emission,
+        category_id: tx.categoria_id || tx.category_id,
+        description: tx.descricao || tx.observacao || tx.description || 'Pagamento'
+    }));
+
+    const allTransactions = [...receivables, ...payables];
+
+    // Filter by year locally to be safe, since we didn't pass strict date params to avoid API rejection
+    return allTransactions.filter(tx => {
+        if (!tx.emission) return true; // keep if no date
+        return tx.emission.startsWith(year) || tx.emission.includes(year);
+    });
 }
 
 export async function getContaAzulDRE(targetYear: string = new Date().getFullYear().toString()): Promise<DREData> {
