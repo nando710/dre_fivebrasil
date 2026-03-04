@@ -1,8 +1,7 @@
-import fs from 'fs';
-import path from 'path';
+import { cookies } from 'next/headers';
 import axios from 'axios';
 
-const TOKEN_FILE_PATH = path.resolve(process.cwd(), 'data/ca-tokens.json');
+
 const CONTA_AZUL_AUTH_API = 'https://auth.contaazul.com';
 const CONTA_AZUL_AUTH_URL = 'https://auth.contaazul.com/login';
 
@@ -52,7 +51,7 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenData> {
         created_at: Date.now()
     };
 
-    saveTokens(tokenData);
+    await saveTokens(tokenData);
     return tokenData;
 }
 
@@ -80,28 +79,38 @@ export async function refreshTokens(refreshToken: string): Promise<TokenData> {
         created_at: Date.now()
     };
 
-    saveTokens(tokenData);
+    await saveTokens(tokenData);
     return tokenData;
 }
 
-export function saveTokens(tokens: TokenData) {
-    fs.writeFileSync(TOKEN_FILE_PATH, JSON.stringify(tokens, null, 2), 'utf-8');
+export async function saveTokens(tokens: TokenData) {
+    const cookieStore = await cookies();
+    cookieStore.set('ca_tokens', JSON.stringify(tokens), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 365 // 1 year fallback (refresh token lifespan usually)
+    });
 }
 
-export function getTokens(): TokenData | null {
-    if (!fs.existsSync(TOKEN_FILE_PATH)) {
+export async function getTokens(): Promise<TokenData | null> {
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get('ca_tokens');
+
+    if (!tokenCookie || !tokenCookie.value) {
         return null;
     }
-    const data = fs.readFileSync(TOKEN_FILE_PATH, 'utf-8');
+
     try {
-        return JSON.parse(data) as TokenData;
+        return JSON.parse(tokenCookie.value) as TokenData;
     } catch (e) {
         return null;
     }
 }
 
 export async function getValidAccessToken(): Promise<string | null> {
-    const tokens = getTokens();
+    const tokens = await getTokens();
     if (!tokens) return null;
 
     const now = Date.now();
