@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getValidAccessToken } from './contaazul-auth';
 import { DREData, DRELineItem, Transaction } from './dre-parser';
 
-const CONTA_AZUL_API = 'https://api.contaazul.com';
+const CONTA_AZUL_API = 'https://api-v2.contaazul.com';
 
 interface ContaAzulCategory {
     id: string;

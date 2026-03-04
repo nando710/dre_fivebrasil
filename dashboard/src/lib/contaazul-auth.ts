@@ -3,8 +3,8 @@ import path from 'path';
 import axios from 'axios';
 
 const TOKEN_FILE_PATH = path.resolve(process.cwd(), 'data/ca-tokens.json');
-const CONTA_AZUL_API = 'https://api.contaazul.com';
-const CONTA_AZUL_AUTH_URL = 'https://api.contaazul.com/auth/authorize';
+const CONTA_AZUL_AUTH_API = 'https://auth.contaazul.com';
+const CONTA_AZUL_AUTH_URL = 'https://auth.contaazul.com/login';
 
 // Env variables (to be set in .env.local)
 // CONTA_AZUL_CLIENT_ID
@@ -22,8 +22,8 @@ export function getAuthUrl() {
     const clientId = process.env.CONTA_AZUL_CLIENT_ID;
     const redirectUri = process.env.CONTA_AZUL_REDIRECT_URI;
     const state = 'dre_state_123';
-    // scope=financeiro
-    return `${CONTA_AZUL_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUri || '')}&client_id=${clientId}&scope=financeiro&state=${state}`;
+    const scopes = 'openid profile aws.cognito.signin.user.admin';
+    return `${CONTA_AZUL_AUTH_URL}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri || '')}&state=${state}&scope=${encodeURIComponent(scopes)}`;
 }
 
 export async function exchangeCodeForTokens(code: string): Promise<TokenData> {
@@ -33,12 +33,12 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenData> {
 
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    const response = await axios.post(`${CONTA_AZUL_API}/oauth2/token`, null, {
-        params: {
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code: code,
-        },
+    const payload = new URLSearchParams();
+    payload.append('grant_type', 'authorization_code');
+    payload.append('redirect_uri', redirectUri || '');
+    payload.append('code', code);
+
+    const response = await axios.post(`${CONTA_AZUL_AUTH_API}/oauth2/token`, payload, {
         headers: {
             'Authorization': `Basic ${credentials}`,
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -62,11 +62,11 @@ export async function refreshTokens(refreshToken: string): Promise<TokenData> {
 
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    const response = await axios.post(`${CONTA_AZUL_API}/oauth2/token`, null, {
-        params: {
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-        },
+    const payload = new URLSearchParams();
+    payload.append('grant_type', 'refresh_token');
+    payload.append('refresh_token', refreshToken);
+
+    const response = await axios.post(`${CONTA_AZUL_AUTH_API}/oauth2/token`, payload, {
         headers: {
             'Authorization': `Basic ${credentials}`,
             'Content-Type': 'application/x-www-form-urlencoded'
