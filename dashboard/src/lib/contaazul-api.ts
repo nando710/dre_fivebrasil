@@ -4,6 +4,19 @@ import { DREData, DRELineItem, Transaction } from './dre-parser';
 
 const CONTA_AZUL_API = 'https://api-v2.contaazul.com';
 
+function extractDataArray(data: any): any[] {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.content)) return data.content; // Typical Spring / Java pagination
+    if (Array.isArray(data.categorias)) return data.categorias;
+    if (Array.isArray(data.lancamentos)) return data.lancamentos;
+
+    console.error('[Conta Azul API] Unexpected response format:', JSON.stringify(data).substring(0, 500));
+    return [];
+}
+
 interface ContaAzulCategory {
     id: string;
     description: string;
@@ -30,7 +43,7 @@ export async function fetchCategories(): Promise<Map<string, ContaAzulCategory>>
     });
 
     const categoryMap = new Map<string, ContaAzulCategory>();
-    const categories: ContaAzulCategory[] = response.data || [];
+    const categories: ContaAzulCategory[] = extractDataArray(response.data);
 
     categories.forEach(cat => {
         categoryMap.set(cat.id, cat);
@@ -60,7 +73,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
 
     // Handle pagination if needed, but for simplicity we return the first page.
     // In a robust app, append all pages.
-    return response.data || [];
+    return extractDataArray(response.data);
 }
 
 export async function getContaAzulDRE(targetYear: string = new Date().getFullYear().toString()): Promise<DREData> {
