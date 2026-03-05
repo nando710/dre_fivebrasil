@@ -37,6 +37,7 @@ interface ContaAzulTransaction {
     emission: string;
     status: string;
     category_id: string;
+    category_name?: string;
     type: string; // RECEIPT or PAYMENT
 }
 
@@ -113,19 +114,20 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
     const receivables = rawReceivablesList.map(tx => ({
         ...tx,
         type: 'RECEIPT',
-        // MAP fields if API returned differently, usually: `data_vencimento`, `valor`, `categoria_id`
-        value: tx.valor || tx.value || 0,
+        value: tx.total || tx.valor || tx.value || 0,
         emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
-        category_id: tx.categoria_id || tx.category_id,
+        category_id: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].id : (tx.categoria_id || tx.category_id),
+        category_name: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].nome : undefined,
         description: tx.descricao || tx.observacao || tx.description || 'Recebimento'
     }));
 
     const payables = rawPayablesList.map(tx => ({
         ...tx,
         type: 'PAYMENT',
-        value: tx.valor || tx.value || 0,
+        value: tx.total || tx.valor || tx.value || 0,
         emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
-        category_id: tx.categoria_id || tx.category_id,
+        category_id: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].id : (tx.categoria_id || tx.category_id),
+        category_name: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].nome : undefined,
         description: tx.descricao || tx.observacao || tx.description || 'Pagamento'
     }));
 
@@ -163,7 +165,7 @@ export async function getContaAzulDRE(targetYear: string = new Date().getFullYea
         const monthIndex = date.getUTCMonth();
         const value = Math.abs(tx.value || 0);
         const cat = categories.get(tx.category_id);
-        const categoryName = cat ? cat.description : 'Sem Categoria';
+        const categoryName = tx.category_name || (cat ? cat.description : 'Sem Categoria');
 
         // Ignore specific categories
         const normalizedCategory = categoryName.toLowerCase().trim();
