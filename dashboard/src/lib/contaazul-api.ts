@@ -115,7 +115,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
         ...tx,
         type: 'RECEIPT',
         value: tx.total || tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
+        emission: tx.data_vencimento || tx.data_competencia || tx.emission || tx.date || `${year}-01-01`,
         category_id: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].id : (tx.categoria_id || tx.category_id),
         category_name: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].nome : undefined,
         description: tx.descricao || tx.observacao || tx.description || 'Recebimento'
@@ -125,7 +125,7 @@ export async function fetchTransactionsForYear(year: string): Promise<ContaAzulT
         ...tx,
         type: 'PAYMENT',
         value: tx.total || tx.valor || tx.value || 0,
-        emission: tx.data_competencia || tx.data_vencimento || tx.emission || tx.date || `${year}-01-01`,
+        emission: tx.data_vencimento || tx.data_competencia || tx.emission || tx.date || `${year}-01-01`,
         category_id: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].id : (tx.categoria_id || tx.category_id),
         category_name: (tx.categorias && tx.categorias.length > 0) ? tx.categorias[0].nome : undefined,
         description: tx.descricao || tx.observacao || tx.description || 'Pagamento'
