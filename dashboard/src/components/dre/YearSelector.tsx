@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from 'react';
 
@@ -12,11 +12,12 @@ interface YearSelectorProps {
 export function YearSelector({ years, currentYear }: YearSelectorProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const pathname = usePathname();
 
     const handleValueChange = (value: string) => {
         const params = new URLSearchParams(searchParams);
         params.set('year', value);
-        router.push(`/?${params.toString()}`);
+        router.push(`${pathname}?${params.toString()}`);
     }
 
     return (

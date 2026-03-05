@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface MonthSelectorProps {
@@ -11,6 +11,7 @@ interface MonthSelectorProps {
 export function MonthSelector({ months, currentMonthIndex }: MonthSelectorProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const pathname = usePathname();
 
     const handleValueChange = (value: string) => {
         const params = new URLSearchParams(searchParams);
@@ -19,7 +20,7 @@ export function MonthSelector({ months, currentMonthIndex }: MonthSelectorProps)
         } else {
             params.set('month', value);
         }
-        router.push(`/?${params.toString()}`);
+        router.push(`${pathname}?${params.toString()}`);
     }
 
     const valueStr = currentMonthIndex !== null ? currentMonthIndex.toString() : 'all';
